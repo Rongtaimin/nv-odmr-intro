@@ -1,0 +1,10 @@
+{
+  "name": "nv-odmr-intro",
+  "private": true,
+  "version": "1.0.0",
+  "description": "NV 色心 ODMR 磁场测量原理教学单页",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js"
+  }
+}

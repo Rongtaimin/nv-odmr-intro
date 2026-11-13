@@ -1,0 +1,379 @@
+// NV 色心 ODMR 教学页 —— 画布渲染 + 交互逻辑
+// 物理计算全部来自 src/physics.js（与 nv_8peak_field_direction.py 同源）
+
+import { calcPeaks, calc8, invertField, D0, GAMMA } from './physics.js';
+
+'use strict';
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const AXIS_COLORS = ['#e5484d', '#46a758', '#e7a13c', '#5aa9e6']; // 红/绿/琥珀/蓝
+
+function setupHiDPI(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.round(rect.width));
+  const h = Math.max(1, Math.round(rect.height));
+  if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h };
+}
+
+// ---------------------------------------------------------------------------
+// 四面体 NV 轴向渲染（共享：hero 与模拟器）
+// ---------------------------------------------------------------------------
+import { NV_AXES } from './physics.js';
+
+function createTetraViewer(canvas) {
+  const state = { yaw: 0.7, pitch: 0.42, dragging: false, autoSpin: !reducedMotion };
+
+  function project(v, w, h) {
+    const cy = Math.cos(state.yaw), sy = Math.sin(state.yaw);
+    const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
+    const x1 = v[0] * cy + v[2] * sy;
+    const z1 = -v[0] * sy + v[2] * cy;
+    const y1 = v[1] * cp - z1 * sp;
+    const z2 = v[1] * sp + z1 * cp;
+    const scale = Math.min(w, h) * 0.34;
+    const persp = 3.2 / (3.2 - z2);
+    return { x: w / 2 + x1 * scale * persp, y: h / 2 - y1 * scale * persp, z: z2 };
+  }
+
+  function draw(Bv) {
+    const { ctx, w, h } = setupHiDPI(canvas);
+    ctx.clearRect(0, 0, w, h);
+
+    const pts = NV_AXES.map(v => project(v, w, h));
+    const faces = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]];
+    const faceDepth = faces.map(f => (pts[f[0]].z + pts[f[1]].z + pts[f[2]].z) / 3);
+    const order = faces.map((_, i) => i).sort((a, b) => faceDepth[a] - faceDepth[b]);
+    for (const fi of order) {
+      const f = faces[fi];
+      ctx.beginPath();
+      ctx.moveTo(pts[f[0]].x, pts[f[0]].y);
+      ctx.lineTo(pts[f[1]].x, pts[f[1]].y);
+      ctx.lineTo(pts[f[2]].x, pts[f[2]].y);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,0.045)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    const c = project([0, 0, 0], w, h);
+
+    pts.forEach((p, i) => {
+      ctx.beginPath();
+      ctx.moveTo(c.x, c.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.strokeStyle = AXIS_COLORS[i];
+      ctx.lineWidth = 2.2 + p.z * 0.8;
+      ctx.globalAlpha = 0.75 + p.z * 0.25;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5 + p.z * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = AXIS_COLORS[i];
+      ctx.fill();
+    });
+
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#d8d2c4';
+    ctx.fill();
+
+    if (Bv) {
+      const n = Math.hypot(...Bv);
+      if (n > 1e-9) {
+        const dir = Bv.map(v => v / n);
+        const tip3 = dir.map(v => v * 1.28);
+        const tip = project(tip3, w, h);
+        ctx.beginPath();
+        ctx.moveTo(c.x, c.y);
+        ctx.lineTo(tip.x, tip.y);
+        ctx.strokeStyle = '#ff5c5c';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        const perp3 = Math.abs(dir[2]) < 0.9 ? [-dir[1], dir[0], 0] : [1, 0, 0];
+        const pn = Math.hypot(...perp3);
+        const perp = perp3.map(v => v / pn * 0.12);
+        const base3 = tip3.map((v, i) => v - dir[i] * 0.16);
+        const w1 = project(base3.map((v, i) => v + perp[i]), w, h);
+        const w2 = project(base3.map((v, i) => v - perp[i]), w, h);
+        ctx.beginPath();
+        ctx.moveTo(tip.x, tip.y);
+        ctx.lineTo(w1.x, w1.y);
+        ctx.lineTo(w2.x, w2.y);
+        ctx.closePath();
+        ctx.fillStyle = '#ff5c5c';
+        ctx.fill();
+        ctx.fillStyle = '#ff8a8a';
+        ctx.font = '13px Consolas, monospace';
+        ctx.fillText('B', tip.x + 8, tip.y - 6);
+      }
+    }
+
+    const L = 1.45;
+    const lab = [[L, 0, 0, 'x'], [0, L, 0, 'y'], [0, 0, L, 'z']];
+    ctx.font = '11px Consolas, monospace';
+    for (const [lx, ly, lz, name] of lab) {
+      const p = project([lx, ly, lz], w, h);
+      ctx.beginPath();
+      ctx.moveTo(c.x, c.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.fillText(name, p.x + 5, p.y + 4);
+    }
+  }
+
+  let px = 0, py = 0;
+  canvas.addEventListener('pointerdown', e => {
+    state.dragging = true; state.autoSpin = false;
+    px = e.clientX; py = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!state.dragging) return;
+    state.yaw += (e.clientX - px) * 0.012;
+    state.pitch = Math.max(-1.4, Math.min(1.4, state.pitch + (e.clientY - py) * 0.012));
+    px = e.clientX; py = e.clientY;
+  });
+  const end = () => { state.dragging = false; };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+
+  return { state, draw };
+}
+
+// ---------------------------------------------------------------------------
+// Hero：自转四面体
+// ---------------------------------------------------------------------------
+const heroEl = document.getElementById('heroTetra');
+if (heroEl) {
+  const hero = createTetraViewer(heroEl);
+  let idleTimer = null;
+  heroEl.addEventListener('pointerdown', () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => { hero.state.autoSpin = !reducedMotion; }, 6000);
+  });
+  function loop() {
+    if (hero.state.autoSpin && !hero.state.dragging) hero.state.yaw += 0.004;
+    hero.draw(null);
+    requestAnimationFrame(loop);
+  }
+  if (reducedMotion) {
+    hero.draw(null);
+    new ResizeObserver(() => hero.draw(null)).observe(heroEl);
+  } else {
+    loop();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 零场 ODMR 示意（静态）
+// ---------------------------------------------------------------------------
+const odmrEl = document.getElementById('odmrDemo');
+if (odmrEl) {
+  const draw = () => {
+    const { ctx, w, h } = setupHiDPI(odmrEl);
+    ctx.clearRect(0, 0, w, h);
+    const padL = 56, padR = 18, padT = 20, padB = 46;
+    const f0 = 2800, f1 = 2940;
+    const X = f => padL + (f - f0) / (f1 - f0) * (w - padL - padR);
+    const Y = v => padT + (1 - v) * (h - padT - padB);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, h - padB); ctx.lineTo(w - padR, h - padB); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('荧光强度', padL - 40, padT + 6);
+    ctx.fillText('微波频率 (MHz)', w / 2 - 40, h - 10);
+    for (const f of [2800, 2850, 2870, 2900, 2940]) {
+      ctx.fillText(String(f), X(f) - 14, h - padB + 18);
+      ctx.beginPath(); ctx.moveTo(X(f), h - padB); ctx.lineTo(X(f), h - padB + 4); ctx.stroke();
+    }
+
+    ctx.beginPath();
+    for (let px = 0; px <= w - padL - padR; px++) {
+      const f = f0 + px / (w - padL - padR) * (f1 - f0);
+      const g = 4.0;
+      const y = 1 - 0.28 * g * g / ((f - D0) ** 2 + g * g);
+      const sx = padL + px, sy = Y(y * 0.92);
+      px === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+    }
+    ctx.strokeStyle = '#e5484d';
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+
+    const dipY = Y((1 - 0.28) * 0.92);
+    ctx.fillStyle = '#e7a13c';
+    ctx.font = '13px Consolas, monospace';
+    ctx.fillText('共振下跌 → D ≈ 2870 MHz', X(D0) + 12, dipY + 4);
+  };
+  draw();
+  new ResizeObserver(draw).observe(odmrEl);
+}
+
+// ---------------------------------------------------------------------------
+// 交互模拟器
+// ---------------------------------------------------------------------------
+const sldB = document.getElementById('sldB');
+if (sldB) {
+  const sldT = document.getElementById('sldT');
+  const sldP = document.getElementById('sldP');
+  const outB = document.getElementById('outB');
+  const outT = document.getElementById('outT');
+  const outP = document.getElementById('outP');
+  const specEl = document.getElementById('spectrum');
+  const simTetraEl = document.getElementById('simTetra');
+  const tableBody = document.getElementById('peakTable');
+  const simTetra = createTetraViewer(simTetraEl);
+
+  const F_MIN = 2650, F_MAX = 3090;
+
+  function drawSpectrum(rows) {
+    const { ctx, w, h } = setupHiDPI(specEl);
+    ctx.clearRect(0, 0, w, h);
+    const padL = 54, padR = 16, padT = 26, padB = 44;
+    const X = f => padL + (f - F_MIN) / (F_MAX - F_MIN) * (w - padL - padR);
+    const Y = v => padT + (1 - v) * (h - padT - padB);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, h - padB); ctx.lineTo(w - padR, h - padB); ctx.stroke();
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    for (let f = 2700; f <= 3050; f += 50) {
+      ctx.fillText(String(f), X(f) - 12, h - padB + 16);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.beginPath(); ctx.moveTo(X(f), padT); ctx.lineTo(X(f), h - padB); ctx.stroke();
+    }
+    ctx.fillText('微波频率 (MHz)', w / 2 - 38, h - 8);
+    ctx.fillText('荧光', 8, padT + 4);
+
+    ctx.strokeStyle = 'rgba(231,161,60,0.5)';
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(X(D0), padT); ctx.lineTo(X(D0), h - padB); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(231,161,60,0.8)';
+    ctx.fillText('D=2870', X(D0) - 20, padT - 8);
+
+    const all = [];
+    rows.forEach(r => {
+      all.push({ f: r.freqLo, c: AXIS_COLORS[r.axis] });
+      all.push({ f: r.freqHi, c: AXIS_COLORS[r.axis] });
+    });
+
+    ctx.beginPath();
+    for (let px = 0; px <= w - padL - padR; px++) {
+      const f = F_MIN + px / (w - padL - padR) * (F_MAX - F_MIN);
+      let y = 1;
+      for (const p of all) {
+        const g = 2.2;
+        y -= 0.16 * g * g / ((f - p.f) ** 2 + g * g);
+      }
+      const sy = Y(Math.max(0.05, y));
+      px === 0 ? ctx.moveTo(padL + px, sy) : ctx.lineTo(padL + px, sy);
+    }
+    ctx.strokeStyle = 'rgba(216,210,196,0.9)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    for (const p of all) {
+      const x = X(p.f);
+      ctx.strokeStyle = p.c;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x, h - padB); ctx.lineTo(x, h - padB - 12); ctx.stroke();
+    }
+  }
+
+  function updateTable(rows) {
+    tableBody.innerHTML = rows.map(r => `
+      <tr>
+        <td><span class="dot" style="background:${AXIS_COLORS[r.axis]}"></span>轴 ${r.axis + 1}</td>
+        <td>${(GAMMA * r.bParallel).toFixed(2)}</td>
+        <td>${r.freqLo.toFixed(2)}</td>
+        <td>${r.freqHi.toFixed(2)}</td>
+      </tr>`).join('');
+  }
+
+  function update() {
+    const B = parseFloat(sldB.value);
+    const th = parseFloat(sldT.value);
+    const ph = parseFloat(sldP.value);
+    outB.textContent = `${B.toFixed(2)} mT`;
+    outT.textContent = `${th}°`;
+    outP.textContent = `${ph}°`;
+
+    const rows = calcPeaks(B, th, ph);
+    drawSpectrum(rows);
+    updateTable(rows);
+
+    const thr = th * Math.PI / 180, phr = ph * Math.PI / 180;
+    simTetra.draw([B * Math.sin(thr) * Math.cos(phr), B * Math.sin(thr) * Math.sin(phr), B * Math.cos(thr)]);
+  }
+
+  [sldB, sldT, sldP].forEach(el => el.addEventListener('input', update));
+  simTetraEl.addEventListener('pointermove', () => { if (simTetra.state.dragging) update(); });
+  new ResizeObserver(update).observe(specEl);
+  new ResizeObserver(update).observe(simTetraEl);
+  update();
+}
+
+// ---------------------------------------------------------------------------
+// 在线计算器：8 峰 -> 磁场
+// ---------------------------------------------------------------------------
+const btnCalc = document.getElementById('btnCalc');
+if (btnCalc) {
+  const inputs = Array.from({ length: 8 }, (_, i) => document.getElementById(`pk${i + 1}`));
+  const resultEl = document.getElementById('calcResult');
+  const btnDemo = document.getElementById('btnDemo');
+  const btnClear = document.getElementById('btnClear');
+
+  btnCalc.addEventListener('click', () => {
+    const vals = inputs.map(el => el.value.trim()).filter(v => v !== '').map(Number);
+    if (vals.length !== 8 || vals.some(v => !isFinite(v))) {
+      resultEl.className = 'calc-result show';
+      resultEl.innerHTML = `<span class="warn">请填满 8 个有效频率数值（当前 ${vals.length} 个）。</span>`;
+      return;
+    }
+    try {
+      const r = invertField(vals);
+      const warn = r.rms_MHz > 2.0
+        ? `\n<span class="warn">⚠ RMS 残差偏大，请检查峰位是否正确、是否有峰丢失/错配。</span>` : '';
+      resultEl.className = 'calc-result show';
+      resultEl.innerHTML =
+        `输入峰频率 (MHz): ${[...vals].sort((a, b) => a - b).map(v => v.toFixed(3)).join(', ')}\n` +
+        `磁场大小  |B|   : <span class="val">${r.B_mT.toFixed(4)} mT</span>  (${(r.B_mT * 1000).toFixed(2)} µT)\n` +
+        `极角      θ     : <span class="val">${r.theta_deg.toFixed(3)}°</span>\n` +
+        `方位角    φ     : <span class="val">${r.phi_deg.toFixed(3)}°</span>\n` +
+        `分量 Bx, By, Bz : ${r.Bx_mT.toFixed(4)}, ${r.By_mT.toFixed(4)}, ${r.Bz_mT.toFixed(4)} mT\n` +
+        `拟合 D          : ${r.D_MHz.toFixed(3)} MHz\n` +
+        `回算峰 RMS 误差 : ${r.rms_MHz.toFixed(4)} MHz` + warn;
+    } catch (err) {
+      resultEl.className = 'calc-result show';
+      resultEl.innerHTML = `<span class="warn">计算失败：${err.message}</span>`;
+    }
+  });
+
+  btnDemo.addEventListener('click', () => {
+    const demo = calc8(3.0, 60 * Math.PI / 180, 30 * Math.PI / 180, D0);
+    inputs.forEach((el, i) => { el.value = demo[i].toFixed(3); });
+  });
+
+  btnClear.addEventListener('click', () => {
+    inputs.forEach(el => { el.value = ''; });
+    resultEl.className = 'calc-result';
+    resultEl.textContent = '';
+  });
+}
