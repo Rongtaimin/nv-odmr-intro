@@ -19,7 +19,8 @@ function arg(names, dflt) {
 }
 
 const port = parseInt(arg(['--port', '-p'], process.env.PORT || '7100'), 10);
-const host = arg(['--host'], process.env.HOST || '127.0.0.1');
+// 默认监听所有网卡，便于手机通过局域网扫码访问；可用 --host 覆盖
+const host = arg(['--host'], process.env.HOST || '0.0.0.0');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',

@@ -143,6 +143,31 @@ table.peaks td:first-child,table.peaks th:first-child{text-align:left}
 footer{padding:48px 0 64px;color:var(--ink-2);font-size:.85rem;border-top:1px solid var(--line)}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* ============ 手机端适配 ============ */
+@media (max-width:700px){
+  .wrap{padding:0 16px}
+  section{padding:44px 0}
+  .hero{padding:48px 0 40px}
+  h2{font-size:1.45rem}
+  /* 顶栏：单行横向滑动，避免换行挤占屏幕 */
+  .nav-inner{flex-wrap:nowrap;overflow-x:auto;padding:10px 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .nav-inner::-webkit-scrollbar{display:none}
+  .nav-brand{flex:0 0 auto}
+  .nav a{flex:0 0 auto;padding:8px 10px}
+  /* 画布高度随窄屏收紧 */
+  #heroTetra{height:280px}
+  #spectrum{height:240px}
+  #simTetra{height:260px}
+  .sim,.calc-box{padding:16px}
+  /* 峰数据表窄屏可横向滚动，不被挤压 */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.peaks{font-size:.8rem}
+  table.peaks th,table.peaks td{padding:6px 8px;white-space:nowrap}
+  /* 触屏按钮加大 */
+  .btn{padding:12px 22px}
+  .calc-btns .btn{flex:1 1 auto;text-align:center}
+}
 </style>
 </head>
 <body>
@@ -298,12 +323,14 @@ footer{padding:48px 0 64px;color:var(--ink-2);font-size:.85rem;border-top:1px so
         <canvas id="spectrum" role="img" aria-label="当前磁场参数下的 ODMR 八峰频谱图"></canvas>
         <canvas id="simTetra" aria-label="磁场方向（红色箭头）与四个 NV 轴向的相对关系，可拖拽旋转"></canvas>
       </div>
+      <div class="table-wrap">
       <table class="peaks" aria-label="八个共振峰频率数值表">
         <thead>
           <tr><th>NV 轴向</th><th>γ·B<sub>∥</sub> (MHz)</th><th>f<sub>−</sub> (MHz)</th><th>f<sub>+</sub> (MHz)</th></tr>
         </thead>
         <tbody id="peakTable"></tbody>
       </table>
+      </div>
       <p class="hint" style="margin-top:12px">颜色把频谱上的峰、四面体上的轴和数据表的行一一对应。左图横轴为微波频率，纵轴为荧光强度（向下为共振下跌）。</p>
     </div>
   </div>
