@@ -140,6 +140,23 @@ table.peaks td:first-child,table.peaks th:first-child{text-align:left}
 .ref .v{font-family:Consolas,monospace;font-size:1.1rem;color:var(--accent-2)}
 .ref .d{font-size:.82rem;color:var(--ink-2);margin-top:6px;line-height:1.5}
 
+/* 亮/暗开关演示（教程 §3.2） */
+.bd-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.bd-state{font-size:.88rem;color:var(--ink-2);transition:color .2s}
+.bd-state.active{font-weight:600}
+#bdLabelOff.active{color:var(--p-green)}
+#bdLabelOn.active{color:var(--p-red)}
+.switch{position:relative;display:inline-block;width:56px;height:30px;flex:0 0 auto}
+.switch input{position:absolute;inset:0;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:2}
+.switch .track{position:absolute;inset:0;border-radius:999px;background:var(--bg-3);border:1px solid var(--line);transition:border-color .25s}
+.switch .track::before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;border-radius:50%;
+  background:var(--p-green);box-shadow:0 0 10px oklch(0.75 0.17 150 / .6);
+  transition:transform .25s,background .25s,box-shadow .25s}
+.switch input:checked ~ .track{border-color:var(--p-red)}
+.switch input:checked ~ .track::before{transform:translateX(26px);background:var(--p-red);box-shadow:0 0 4px oklch(0.68 0.19 25 / .35)}
+.switch input:focus-visible ~ .track{outline:2px solid var(--accent-2);outline-offset:2px}
+#brightDarkDemo{width:100%;height:340px}
+
 footer{padding:48px 0 64px;color:var(--ink-2);font-size:.85rem;border-top:1px solid var(--line)}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
@@ -159,6 +176,7 @@ footer{padding:48px 0 64px;color:var(--ink-2);font-size:.85rem;border-top:1px so
   #heroTetra{height:280px}
   #spectrum{height:240px}
   #simTetra{height:260px}
+  #brightDarkDemo{height:300px}
   .sim,.calc-box{padding:16px}
   /* 峰数据表窄屏可横向滚动，不被挤压 */
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -267,6 +285,30 @@ footer{padding:48px 0 64px;color:var(--ink-2);font-size:.85rem;border-top:1px so
       <figure class="figure">
         <canvas id="odmrDemo" width="640" height="360" style="width:100%" role="img" aria-label="ODMR 扫频示意图：无磁场时荧光谱在 2870 MHz 处出现一个下跌"></canvas>
         <figcaption>零磁场下的 ODMR 扫频：荧光在 D ≈ 2870 MHz 处出现共振下跌。加上磁场后，这一个 dip 会劈裂成多个——这正是下一节的内容。</figcaption>
+      </figure>
+    </div>
+
+    <h3 style="margin-top:44px">实验上如何测出 ESR 频率？（教程 §3.2）</h3>
+    <div class="cols">
+      <div>
+        <p>思路一句话：<strong>保持绿光照射、扫描微波频率、盯着红色荧光看</strong>。具体分四步：</p>
+        <p><b style="color:var(--p-green)">① 施加微波</b>——在金刚石附近的一根导线中通入振荡电流，产生一个振荡的微波磁场。它是叠加在待测静磁场之外的"探针"，本身穿过金刚石几乎不发生改变。</p>
+        <p><b style="color:var(--p-green)">② 持续泵浦</b>——整个过程中绿激光保持照射，NV 自旋不断被洗回亮的 m<sub>s</sub> = 0 态，荧光维持在高位。</p>
+        <p><b style="color:var(--p-amber)">③ 扫频监测</b>——在预期的 ESR 频率附近缓慢扫描微波频率，同时记录光致发光强度。这条"荧光–频率"曲线就是 ESR 谱（即 ODMR 谱）。</p>
+        <p><b style="color:var(--p-red)">④ 读出凹陷</b>——微波一旦扫到 f<sub>u</sub> 或 f<sub>l</sub>，共振把自旋从亮的 0 态抽运到暗的 ±1 态，荧光应声下跌。凹陷的位置就是 ESR 频率，由此反推磁场。</p>
+        <div class="formula green">荧光凹陷位置 → f<sub>u</sub>, f<sub>l</sub> → 磁场大小 B 与夹角 θ</div>
+      </div>
+      <figure class="figure">
+        <div class="bd-controls">
+          <span class="bd-state active" id="bdLabelOff">微波失谐 · 荧光亮</span>
+          <label class="switch">
+            <input type="checkbox" id="bdSwitch" aria-label="切换微波失谐与共振，观察荧光亮暗变化">
+            <span class="track"></span>
+          </label>
+          <span class="bd-state" id="bdLabelOn">微波共振 · 荧光暗</span>
+        </div>
+        <canvas id="brightDarkDemo" role="img" aria-label="亮暗开关演示：绿光经光纤入射激发 NV，红光经同一光纤返回并由二向色分光镜分离；微波失谐时荧光明亮，共振时进入暗态、荧光减弱"></canvas>
+        <figcaption>拨动开关：微波失谐时自旋留在 m<sub>s</sub> = 0，红光正常发出（亮）；频率撞上共振时自旋被搬进 m<sub>s</sub> = ±1，经系间窜越走"暗通道"返回，荧光下跌约 20–30%（暗）——谱上的凹陷就是这样被"看"到的。光路上，532 nm 激发光与 637 nm 荧光共用同一根光纤；因返回红光远弱于绿光，需用<strong>二向色分光镜</strong>按波长把微弱红光分到探测器。</figcaption>
       </figure>
     </div>
   </div>
