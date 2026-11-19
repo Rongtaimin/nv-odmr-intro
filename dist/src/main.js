@@ -1,7 +1,8 @@
 // NV 色心 ODMR 教学页 —— 画布渲染 + 交互逻辑
 // 物理计算全部来自 src/physics.js（与 nv_8peak_field_direction.py 同源）
 
-import { calcPeaks, calc8, invertField, D0, GAMMA } from './physics.js';
+import { calcPeaks, D0, GAMMA } from './physics.js';
+import './esr-split.js';
 
 'use strict';
 
@@ -23,7 +24,7 @@ function setupHiDPI(canvas) {
 }
 
 // ---------------------------------------------------------------------------
-// 四面体 NV 轴向渲染（共享：hero 与模拟器）
+// 四面体 NV 轴向渲染（交互模拟器）
 // ---------------------------------------------------------------------------
 import { NV_AXES } from './physics.js';
 
@@ -155,76 +156,6 @@ function createTetraViewer(canvas) {
 }
 
 // ---------------------------------------------------------------------------
-// Hero：自转四面体
-// ---------------------------------------------------------------------------
-const heroEl = document.getElementById('heroTetra');
-if (heroEl) {
-  const hero = createTetraViewer(heroEl);
-  let idleTimer = null;
-  heroEl.addEventListener('pointerdown', () => {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => { hero.state.autoSpin = !reducedMotion; }, 6000);
-  });
-  function loop() {
-    if (hero.state.autoSpin && !hero.state.dragging) hero.state.yaw += 0.004;
-    hero.draw(null);
-    requestAnimationFrame(loop);
-  }
-  if (reducedMotion) {
-    hero.draw(null);
-    new ResizeObserver(() => hero.draw(null)).observe(heroEl);
-  } else {
-    loop();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 零场 ODMR 示意（静态）
-// ---------------------------------------------------------------------------
-const odmrEl = document.getElementById('odmrDemo');
-if (odmrEl) {
-  const draw = () => {
-    const { ctx, w, h } = setupHiDPI(odmrEl);
-    ctx.clearRect(0, 0, w, h);
-    const padL = 56, padR = 18, padT = 20, padB = 46;
-    const f0 = 2800, f1 = 2940;
-    const X = f => padL + (f - f0) / (f1 - f0) * (w - padL - padR);
-    const Y = v => padT + (1 - v) * (h - padT - padB);
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, h - padB); ctx.lineTo(w - padR, h - padB); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '12px sans-serif';
-    ctx.fillText('荧光强度', padL - 40, padT + 6);
-    ctx.fillText('微波频率 (MHz)', w / 2 - 40, h - 10);
-    for (const f of [2800, 2850, 2870, 2900, 2940]) {
-      ctx.fillText(String(f), X(f) - 14, h - padB + 18);
-      ctx.beginPath(); ctx.moveTo(X(f), h - padB); ctx.lineTo(X(f), h - padB + 4); ctx.stroke();
-    }
-
-    ctx.beginPath();
-    for (let px = 0; px <= w - padL - padR; px++) {
-      const f = f0 + px / (w - padL - padR) * (f1 - f0);
-      const g = 4.0;
-      const y = 1 - 0.28 * g * g / ((f - D0) ** 2 + g * g);
-      const sx = padL + px, sy = Y(y * 0.92);
-      px === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
-    }
-    ctx.strokeStyle = '#e5484d';
-    ctx.lineWidth = 2.4;
-    ctx.stroke();
-
-    const dipY = Y((1 - 0.28) * 0.92);
-    ctx.fillStyle = '#e7a13c';
-    ctx.font = '13px Consolas, monospace';
-    ctx.fillText('共振下跌 → D ≈ 2870 MHz', X(D0) + 12, dipY + 4);
-  };
-  draw();
-  new ResizeObserver(draw).observe(odmrEl);
-}
-
-// ---------------------------------------------------------------------------
 // 交互模拟器
 // ---------------------------------------------------------------------------
 const sldB = document.getElementById('sldB');
@@ -328,54 +259,6 @@ if (sldB) {
   new ResizeObserver(update).observe(specEl);
   new ResizeObserver(update).observe(simTetraEl);
   update();
-}
-
-// ---------------------------------------------------------------------------
-// 在线计算器：8 峰 -> 磁场
-// ---------------------------------------------------------------------------
-const btnCalc = document.getElementById('btnCalc');
-if (btnCalc) {
-  const inputs = Array.from({ length: 8 }, (_, i) => document.getElementById(`pk${i + 1}`));
-  const resultEl = document.getElementById('calcResult');
-  const btnDemo = document.getElementById('btnDemo');
-  const btnClear = document.getElementById('btnClear');
-
-  btnCalc.addEventListener('click', () => {
-    const vals = inputs.map(el => el.value.trim()).filter(v => v !== '').map(Number);
-    if (vals.length !== 8 || vals.some(v => !isFinite(v))) {
-      resultEl.className = 'calc-result show';
-      resultEl.innerHTML = `<span class="warn">请填满 8 个有效频率数值（当前 ${vals.length} 个）。</span>`;
-      return;
-    }
-    try {
-      const r = invertField(vals);
-      const warn = r.rms_MHz > 2.0
-        ? `\n<span class="warn">⚠ RMS 残差偏大，请检查峰位是否正确、是否有峰丢失/错配。</span>` : '';
-      resultEl.className = 'calc-result show';
-      resultEl.innerHTML =
-        `输入峰频率 (MHz): ${[...vals].sort((a, b) => a - b).map(v => v.toFixed(3)).join(', ')}\n` +
-        `磁场大小  |B|   : <span class="val">${r.B_mT.toFixed(4)} mT</span>  (${(r.B_mT * 1000).toFixed(2)} µT)\n` +
-        `极角      θ     : <span class="val">${r.theta_deg.toFixed(3)}°</span>\n` +
-        `方位角    φ     : <span class="val">${r.phi_deg.toFixed(3)}°</span>\n` +
-        `分量 Bx, By, Bz : ${r.Bx_mT.toFixed(4)}, ${r.By_mT.toFixed(4)}, ${r.Bz_mT.toFixed(4)} mT\n` +
-        `拟合 D          : ${r.D_MHz.toFixed(3)} MHz\n` +
-        `回算峰 RMS 误差 : ${r.rms_MHz.toFixed(4)} MHz` + warn;
-    } catch (err) {
-      resultEl.className = 'calc-result show';
-      resultEl.innerHTML = `<span class="warn">计算失败：${err.message}</span>`;
-    }
-  });
-
-  btnDemo.addEventListener('click', () => {
-    const demo = calc8(3.0, 60 * Math.PI / 180, 30 * Math.PI / 180, D0);
-    inputs.forEach((el, i) => { el.value = demo[i].toFixed(3); });
-  });
-
-  btnClear.addEventListener('click', () => {
-    inputs.forEach(el => { el.value = ''; });
-    resultEl.className = 'calc-result';
-    resultEl.textContent = '';
-  });
 }
 
 // ---------------------------------------------------------------------------

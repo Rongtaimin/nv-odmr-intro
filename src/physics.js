@@ -56,6 +56,13 @@ export function calcPeaks(B, thDeg, phDeg, D = D0) {
   });
 }
 
+// 单条 NV 轴：磁场与该轴夹角为 thDeg，返回两个 ESR 跃迁频率 (MHz)。
+export function calcSingleAxisPeaks(B, thDeg, D = D0) {
+  const th = thDeg * Math.PI / 180;
+  const ev = nvEigen(B * Math.sin(th), 0, B * Math.cos(th), D, 0);
+  return { freqLo: ev[1] - ev[0], freqHi: ev[2] - ev[0] };
+}
+
 // 8 个峰（升序），供反演残差使用
 export function calc8(B, thRad, phRad, D) {
   const rows = calcPeaks(B, thRad * 180 / Math.PI, phRad * 180 / Math.PI, D);

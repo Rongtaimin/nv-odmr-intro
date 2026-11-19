@@ -5,6 +5,7 @@
   "description": "NV 色心 ODMR 磁场测量原理教学单页",
   "type": "module",
   "scripts": {
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "node build.js"
   }
 }
