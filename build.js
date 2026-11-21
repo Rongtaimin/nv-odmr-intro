@@ -13,6 +13,7 @@ const files = [
   'src/main.js',
   'src/physics.js',
   'src/esr-split.js',
+  'src/rotating-frame.js',
   'assets/product.png',
   'papers/Micron-resolved+quantum+precision+measurement+of+magnetic+field+at+the+Tesla+level.pdf',
   'papers/Scalar_Magnetic_Field_Measurement_Based_on_Nitrogen-Vacancy_Centers_in_Diamond.pdf',

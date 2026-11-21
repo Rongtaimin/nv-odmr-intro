@@ -3,6 +3,7 @@
 
 import { calcPeaks, D0, GAMMA } from './physics.js';
 import './esr-split.js';
+import './rotating-frame.js';
 
 'use strict';
 

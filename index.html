@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>NV 色心 ODMR 磁场测量原理</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -157,46 +158,79 @@
   </div>
 </section>
 
-<!-- ================= 4. 零场劈裂 ================= -->
-<section id="zfs">
+<!-- ================= 4. 旋转参考系中的自旋共振 ================= -->
+<section id="spin-resonance">
   <div class="wrap">
-    <div class="kicker">04 · Zero-Field Splitting</div>
-    <h2>为什么磁场 B 变化使得峰以 D 为中心对称劈裂？</h2>
-    <p class="lede">NV 色心 = 金刚石晶格中一个替位氮原子 (N) 加上相邻的碳空位 (V)。它俘获一个额外电子后形成 NV⁻，两个未成对电子耦合成<strong>总自旋 S = 1</strong> 的三重态：m<sub>s</sub> = 0, ±1。</p>
-    <div class="cols">
-      <div>
-        <h3>零场劈裂的物理来源</h3>
-        <p>直觉上，没有外磁场时 m<sub>s</sub> = +1 和 −1 应该和 m<sub>s</sub> = 0 简并。但 NV 色心内部并非如此——关键在于<strong>两个电子之间的磁偶极-偶极相互作用</strong>（自旋-自旋耦合）：</p>
-        <p>两个电子的磁矩像两根小磁针，它们的相互作用能取决于自旋相对取向，也取决于电荷云的空间形状。NV 色心的电子云沿 N–空位连线呈 <strong>C<sub>3v</sub> 三重对称</strong>，不是球对称的。于是：</p>
-        <p>· 自旋躺在垂直于轴的平面内（m<sub>s</sub> = ±1）时，两电子"靠得更近"，磁偶极排斥更强，能量<span style="color:var(--p-red)">升高</span>；<br>
-        · 自旋沿轴排列（m<sub>s</sub> = 0）时能量<span style="color:var(--p-green)">较低</span>。</p>
-        <p>结果是：即使在零磁场下，m<sub>s</sub> = ±1 也比 m<sub>s</sub> = 0 高出 D ≈ 2870 MHz。这就是<strong>零场劈裂</strong>——它不是磁场造成的，而是分子自身的对称性写进哈密顿量里的：</p>
-        <div class="formula">H = D·S<sub>z</sub>² + E·(S<sub>x</sub>² − S<sub>y</sub>²) + γ·<b>B</b>·<b>S</b></div>
-        <p class="hint">第一项即零场劈裂（D ≈ 2870 MHz，随温度漂移约 −74 kHz/°C）；E ≈ 几 MHz 是横向应变项；最后一项是磁场的塞曼作用。</p>
-      </div>
-      <figure class="figure">
-        <svg viewBox="0 0 420 300" width="100%" role="img" aria-label="NV 色心基态能级图：零场下 ms=0 与 ms=±1 之间劈裂 2870 MHz">
+    <div class="kicker">04 · Rotating Frame</div>
+    <h2>为什么共振时，微波能持续翻转自旋？</h2>
+    <p class="lede">关键不是微波变得更强，而是它的横向磁场与磁矩进动保持固定相位。换到同频旋转参考系后，交变场变成近似静止的场，力矩因此不再来回抵消。</p>
+
+    <div class="rotating-frames">
+      <figure class="rotating-frame">
+        <h3>实验室参考系</h3>
+        <p class="hint">磁矩与 B₁ 都以角频率 ω₀ 绕 z 轴旋转</p>
+        <svg id="rfLabSvg" viewBox="0 0 380 310" role="img" aria-labelledby="rfLabTitle rfLabDesc">
+          <title id="rfLabTitle">实验室参考系中的同步进动</title>
+          <desc id="rfLabDesc">青色磁矩绕静磁场进动，琥珀色微波磁场以相同频率旋转，并与横向磁矩保持九十度相位差。</desc>
           <defs>
-            <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M0,0 L10,5 L0,10 z" fill="oklch(0.75 0.17 150)"/>
-            </marker>
+            <marker id="rfArrowMuLab" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="var(--p-cyan)"/></marker>
+            <marker id="rfArrowB1Lab" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="var(--p-amber)"/></marker>
+            <marker id="rfArrowB0Lab" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="var(--ink)"/></marker>
           </defs>
-          <text x="20" y="30" fill="oklch(0.72 0.012 70)" font-size="13">基态 ³A₂（S = 1）</text>
-          <!-- ms=0 -->
-          <line x1="60" y1="240" x2="360" y2="240" stroke="oklch(0.75 0.17 150)" stroke-width="3"/>
-          <text x="368" y="245" fill="oklch(0.75 0.17 150)" font-size="14">mₛ = 0</text>
-          <!-- ms=±1 -->
-          <line x1="60" y1="90" x2="360" y2="90" stroke="oklch(0.68 0.19 25)" stroke-width="3"/>
-          <text x="368" y="95" fill="oklch(0.68 0.19 25)" font-size="14">mₛ = ±1</text>
-          <!-- D 标注 -->
-          <line x1="210" y1="240" x2="210" y2="90" stroke="oklch(0.78 0.14 75)" stroke-width="1.6" stroke-dasharray="5 4" marker-start="url(#arr)" marker-end="url(#arr)"/>
-          <rect x="222" y="150" width="150" height="30" rx="6" fill="oklch(0.27 0.016 60)"/>
-          <text x="232" y="170" fill="oklch(0.78 0.14 75)" font-size="14" font-family="Consolas,monospace">D ≈ 2870 MHz</text>
-          <text x="20" y="285" fill="oklch(0.46 0.01 260)" font-size="12">零磁场下的基态能级（未按比例）</text>
+          <line x1="190" y1="165" x2="190" y2="30" class="rf-axis"/>
+          <text x="198" y="32" class="rf-meta">z</text>
+          <path id="rfLabPlane" class="rf-guide"/>
+          <path id="rfLabCone" class="rf-trajectory"/>
+          <line x1="190" y1="165" x2="190" y2="48" class="rf-b0" marker-end="url(#rfArrowB0Lab)"/>
+          <text x="200" y="55" class="rf-b0-label">B₀（静止）</text>
+          <line id="rfLabMu" x1="190" y1="165" x2="240" y2="100" class="rf-mu" marker-end="url(#rfArrowMuLab)"/>
+          <text id="rfLabMuLabel" x="248" y="96" class="rf-mu-label">磁矩 μ</text>
+          <line id="rfLabB1" x1="190" y1="165" x2="150" y2="185" class="rf-b1" marker-end="url(#rfArrowB1Lab)"/>
+          <text id="rfLabB1Label" x="100" y="200" class="rf-b1-label">微波 B₁</text>
+          <text x="190" y="285" text-anchor="middle" class="rf-note">同频旋转，且 B₁ 与横向 μ 保持 90° 相位差</text>
+          <text x="190" y="303" text-anchor="middle" class="rf-meta">力矩持续改变倾角，而不是前后推动相互抵消</text>
         </svg>
-        <figcaption>零场下 m<sub>s</sub> = ±1 比 m<sub>s</sub> = 0 高 D ≈ 2.87 GHz——这把"尺子"的零点由 NV 自身结构钉死，测量时无需外部基准。</figcaption>
+        <figcaption>运动由两部分组成：绕 B₀ 的快速进动，以及微波引起的缓慢翻转。</figcaption>
+      </figure>
+
+      <figure class="rotating-frame">
+        <h3>同频旋转参考系</h3>
+        <p class="hint">坐标系也以 ω₀ 绕 z 轴旋转：Δω = ω₀ − ω = 0</p>
+        <svg id="rfRotSvg" viewBox="0 0 380 310" role="img" aria-labelledby="rfRotTitle rfRotDesc">
+          <title id="rfRotTitle">共振旋转参考系中的固定微波场</title>
+          <desc id="rfRotDesc">琥珀色微波场固定沿 y 撇方向，青色磁矩在 x 撇 z 撇平面内绕它持续进动，形成拉比翻转。</desc>
+          <defs>
+            <marker id="rfArrowMuRot" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="var(--p-cyan)"/></marker>
+            <marker id="rfArrowB1Rot" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="var(--p-amber)"/></marker>
+          </defs>
+          <line x1="190" y1="165" x2="190" y2="30" class="rf-axis"/>
+          <line x1="190" y1="165" x2="300" y2="165" class="rf-axis"/>
+          <line x1="190" y1="165" x2="245" y2="188" class="rf-axis"/>
+          <text x="198" y="32" class="rf-meta">z′</text>
+          <text x="304" y="169" class="rf-meta">x′</text>
+          <text x="250" y="194" class="rf-meta">y′</text>
+          <circle cx="190" cy="165" r="82" class="rf-trajectory"/>
+          <path d="M250 92 Q270 78 282 96" fill="none" stroke="var(--p-cyan)" stroke-width="1.5"/>
+          <text x="278" y="82" text-anchor="middle" class="rf-note">拉比翻转</text>
+          <line id="rfRotMu" x1="190" y1="165" x2="240" y2="100" class="rf-mu" marker-end="url(#rfArrowMuRot)"/>
+          <text id="rfRotMuLabel" x="248" y="96" class="rf-mu-label">磁矩 μ</text>
+          <line id="rfRotB1" x1="190" y1="165" x2="240" y2="188" class="rf-b1" marker-end="url(#rfArrowB1Rot)"/>
+          <text x="249" y="202" class="rf-b1-label">B₁（固定）</text>
+          <text x="190" y="285" text-anchor="middle" class="rf-note">纵向有效场为 0，只留下固定的横向 B₁</text>
+          <text x="190" y="303" text-anchor="middle" class="rf-meta">μ 绕 B₁ 进动：0 → ±1 → 0，形成拉比振荡</text>
+        </svg>
+        <figcaption>快速进动被坐标变换“减去”，剩下的就是微波持续驱动自旋翻转。</figcaption>
       </figure>
     </div>
+
+    <div class="resonance-notes">
+      <div><strong>静磁场设定特征频率</strong><p>B₀ 给磁矩一个绕 z 轴的进动频率；在 NV 中，还要把零场劈裂 D 包含进跃迁频率。</p></div>
+      <div><strong>微波横向分量施加力矩</strong><p>只有垂直于 B₀ 的分量能有效改变自旋方向。图中 B₁ 与横向磁矩相差 90°，因此力矩指向倾角变化方向。</p></div>
+      <div><strong>旋转变换消除失步</strong><p>共振时 B₁ 在旋转坐标系中固定，磁矩便绕它连续进动；失谐时 B₁ 仍会旋转，驱动效果大幅减弱。</p></div>
+    </div>
+
+    <div class="formula">B<sub>eff</sub> = (B₀ − ω/γ) ẑ + B₁ x̂′　→　共振时 B<sub>eff</sub> = B₁ x̂′</div>
+    <p class="hint">对简单二能级图像，共振条件为 ω = γB₀。对 NV 的 0 ↔ ±1 跃迁，应把特征角频率理解为 ω₀ = 2πf<sub>±</sub>，其中 f<sub>±</sub> = D ± γB，而不是仅用 γB₀。图展示的是共振附近的等效二能级动力学；磁矩经典矢量对应自旋相干叠加态的期望值。</p>
   </div>
 </section>
 
